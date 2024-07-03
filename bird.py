@@ -5,6 +5,7 @@ import random
 class Game():
     def __init__(self):
         pg.init()
+        pg.mixer.init()
 
         global score
         global bird_start_possiton
@@ -13,7 +14,9 @@ class Game():
         global win_width
         global game_stopped
         global scroll_speed
+        global volume
 
+        volume = 1
         scroll_speed = 1
         score = 0
         win_height = 720
@@ -33,6 +36,11 @@ class Game():
         self.bottom_pipe_image = pg.image.load("frames/pipe_bottom.png")
         self.game_over_image = pg.image.load("frames/game_over.png")
         self.start_image = pg.image.load("frames/start.png")
+
+        self.hit = pg.mixer.Sound("audio/hit.wav")
+        self.die = pg.mixer.Sound("audio/die.wav")
+        self.point = pg.mixer.Sound("audio/point.wav")
+        self.wing = pg.mixer.Sound("audio/wing.wav")
 
         self.window = pg.display.set_mode((win_width, win_height))
 
@@ -55,7 +63,7 @@ class Game():
         global game_stopped
 
         bird = pg.sprite.GroupSingle()
-        bird.add(Bird(self.bird_images))
+        bird.add(Bird(self.bird_images, self.wing))
 
         pipe_timer = 0
         pipes = pg.sprite.Group()
@@ -95,6 +103,9 @@ class Game():
             collision_ground = pg.sprite.spritecollide(bird.sprites()[0], ground, False)
 
             if collision_pipes or collision_ground:
+                if bird.sprite.alive:
+                    self.hit.set_volume(volume)
+                    self.hit.play()
                 bird.sprite.alive = False
                 if collision_ground:
                     self.window.blit(self.game_over_image, (win_width // 2 - self.game_over_image.get_width() // 2,
@@ -108,8 +119,8 @@ class Game():
                 y_top = random.randint(-600, -480)
                 y_bottom = y_top + random.randint(90, 130) + self.bottom_pipe_image.get_height()
 
-                pipes.add(Pipe(x_top, y_top, self.top_pipe_image, 'top'))
-                pipes.add(Pipe(x_bottom, y_bottom, self.bottom_pipe_image, 'bottom'))
+                pipes.add(Pipe(x_top, y_top, self.top_pipe_image, 'top', self.point))
+                pipes.add(Pipe(x_bottom, y_bottom, self.bottom_pipe_image, 'bottom', self.point))
                 pipe_timer = random.randint(180, 250)
             pipe_timer -= 1
 
@@ -118,6 +129,7 @@ class Game():
 
     def menu(self):
         global game_stopped
+        
         while game_stopped:
             self.quit_game()
             self.window.fill((0, 0, 0))
@@ -131,7 +143,6 @@ class Game():
 
             if user_input[pg.K_SPACE]:
                 self.initialize()
-
             pg.display.update()
             self.clock.tick(60)
 
@@ -148,11 +159,12 @@ class Ground(pg.sprite.Sprite):
             self.kill()
 
 class Bird(pg.sprite.Sprite):
-    def __init__(self, image):
+    def __init__(self, image, sound):
         pg.sprite.Sprite.__init__(self)
 
         self.bird_images = image
         self.image = self.bird_images[0]
+        self.sound = sound
 
         self.rect = self.image.get_rect()
         self.rect.center = bird_start_possiton
@@ -178,15 +190,18 @@ class Bird(pg.sprite.Sprite):
         if self.vel == 0:
             self.flap = False
         if user_input[pg.K_SPACE] and not self.flap and self.rect.y > 0 and self.alive:
+            self.sound.set_volume(volume)
+            self.sound.play()
             self.flap = True
             self.vel = -7
 
         self.image = pg.transform.rotate(self.image, self.vel * -7)
 
 class Pipe(pg.sprite.Sprite):
-    def __init__(self, x, y, image, pipe_type):
+    def __init__(self, x, y, image, pipe_type, sound):
         pg.sprite.Sprite.__init__(self)
         self.image = image
+        self.sound = sound
         self.rect = self.image.get_rect()
         self.rect.x, self.rect.y = x, y
         self.enter, self.exit, self.passed = False, False, False
@@ -199,6 +214,8 @@ class Pipe(pg.sprite.Sprite):
             self.kill()
         if self.pipe_type == 'bottom' and not self.passed:
             if bird_start_possiton[0] > self.rect.centerx:
+                self.sound.set_volume(volume)
+                self.sound.play()
                 score += 1
                 self.passed = True
 
