@@ -48,7 +48,7 @@ This project is a simple clone of the popular Flappy Bird game, developed in Pyt
 
 Run the game using the following command:
 ```sh
-python Bird.py
+python bird.py
 ```
 
 ### Controls
